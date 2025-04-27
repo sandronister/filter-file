@@ -10,15 +10,19 @@ import (
 
 func main() {
 
+	var directory string
+
 	if len(os.Args) < 2 {
-		println("Please provide a directory path.")
-		return
+		directory = "./"
 	}
 
-	directory := os.Args[1]
+	if len(os.Args) > 2 {
+		directory = os.Args[1]
+	}
+
 	fmt.Printf("Listing files in directory: %s\n", directory)
 
-	newDirectory, err := inputclear.GetInputText("Enter the directory path: ")
+	newDirectory, err := inputclear.GetInputText("Enter the directory name: ")
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 		return
