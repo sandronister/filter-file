@@ -4,21 +4,22 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/sandronister/filter-file/internal/dto"
 	"github.com/sandronister/filter-file/internal/entity"
 	"github.com/sandronister/filter-file/pkg/fs_bussiness/types"
 )
 
 type FindUseCase struct {
-	fs     types.IFSBussiness
-	folder string
-	count  int
+	fs    types.IFSBussiness
+	info  *dto.SearchResult
+	count int
 }
 
-func NewFindUseCase(fs types.IFSBussiness, folder string) *FindUseCase {
+func NewFindUseCase(fs types.IFSBussiness, info *dto.SearchResult) *FindUseCase {
 	return &FindUseCase{
-		fs:     fs,
-		folder: folder,
-		count:  0,
+		fs:    fs,
+		info:  info,
+		count: 0,
 	}
 }
 
@@ -34,7 +35,8 @@ func (f *FindUseCase) MoveFile(entity <-chan entity.FileEntity) {
 
 	for fileEnt := range entity {
 		if strings.Contains(fileEnt.Content, fileEnt.Keyword) {
-			if err := f.fs.CopyPDF(fileEnt.Path, f.folder+"/"+fileEnt.Name); err != nil {
+			fullPath := f.info.NewDirectory + "/" + fileEnt.Name
+			if err := f.fs.CopyPDF(fileEnt.Path, fullPath); err != nil {
 				fmt.Printf("Error moving file %s: %v\n", fileEnt.Path, err)
 				return
 			}
@@ -43,32 +45,29 @@ func (f *FindUseCase) MoveFile(entity <-chan entity.FileEntity) {
 	}
 }
 
-func (f *FindUseCase) GetFilesWithKeyword(path, keyword string) error {
+func (f *FindUseCase) GetFilesWithKeyword() error {
 
 	maxwork := 5
 	content := make(chan entity.FileEntity)
 
-	err := f.fs.CreateDirectory(f.folder)
+	err := f.fs.CreateDirectory(f.info.NewDirectory)
 
 	if err != nil {
 		return err
 	}
 
-	files, err := f.fs.ListPDFInDirectory(path)
+	fmt.Println("Searching for files for directory:", f.info.Directory)
+
+	files, err := f.fs.ListPDFInDirectory(f.info.Directory)
 	if err != nil {
 		return err
-	}
-
-	if len(files) == 0 {
-		fmt.Println("No files found in the specified directory.")
-		return nil
 	}
 
 	for range maxwork {
 		go f.MoveFile(content)
 	}
 
-	f.GetContent(content, path, keyword, files)
+	f.GetContent(content, files)
 
 	if f.count == 0 {
 		fmt.Println("No files found with the specified keyword.")
@@ -80,17 +79,19 @@ func (f *FindUseCase) GetFilesWithKeyword(path, keyword string) error {
 	return nil
 }
 
-func (f *FindUseCase) GetContent(content chan<- entity.FileEntity, path, keyword string, files []string) {
+func (f *FindUseCase) GetContent(content chan<- entity.FileEntity, files []string) {
 	for _, file := range files {
-		fileContent, err := f.fs.OpenPDF(path + "/" + file)
+		fullPath := f.info.Directory + "/" + file
+
+		fileContent, err := f.fs.OpenPDF(fullPath)
 		if err != nil {
 			return
 		}
 
 		content <- entity.FileEntity{
 			Content: fileContent,
-			Path:    path + "/" + file,
-			Keyword: keyword,
+			Path:    fullPath,
+			Keyword: f.info.Keyword,
 			Name:    file,
 		}
 	}

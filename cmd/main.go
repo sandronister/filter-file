@@ -5,22 +5,23 @@ import (
 	"os"
 
 	"github.com/sandronister/filter-file/internal/di"
+	"github.com/sandronister/filter-file/internal/dto"
 	inputclear "github.com/sandronister/filter-file/pkg/input_clear"
 )
 
 func main() {
 
-	var directory string
+	searchDTO := &dto.SearchResult{}
 
 	if len(os.Args) < 2 {
-		directory = "./"
+		searchDTO.Directory = "."
 	}
 
-	if len(os.Args) > 2 {
-		directory = os.Args[1]
+	if len(os.Args) > 1 {
+		searchDTO.Directory = os.Args[1]
 	}
 
-	fmt.Printf("Listing files in directory: %s\n", directory)
+	fmt.Printf("Listing files in directory: %s\n", searchDTO.Directory)
 
 	newDirectory, err := inputclear.GetInputText("Enter the directory name: ")
 	if err != nil {
@@ -34,11 +35,14 @@ func main() {
 		return
 	}
 
-	usecase := di.NewFind(newDirectory)
+	searchDTO.NewDirectory = newDirectory
+	searchDTO.Keyword = search
+
+	usecase := di.NewFind(searchDTO)
 
 	fmt.Println("Searching for files with keyword:", search)
 
-	err = usecase.GetFilesWithKeyword(directory, search)
+	err = usecase.GetFilesWithKeyword()
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 		return
