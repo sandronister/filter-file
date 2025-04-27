@@ -56,7 +56,8 @@ func (f *FindUseCase) GetFilesWithKeyword(path, keyword string) error {
 	for _, file := range files {
 		values, err := f.fs.OpenPDF(path + "/" + file)
 		if err != nil {
-			return err
+			fmt.Println("Error reading file:", err)
+			continue
 		}
 		fileEnt := entity.FileEntity{
 			Content: values,
